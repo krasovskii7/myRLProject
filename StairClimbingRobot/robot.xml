@@ -1,0 +1,287 @@
+<!--  MJCF -->
+<!-- MuJoCo Format: XML for describing physical components of the robot
+ Reference: https://mujoco.readthedocs.io/en/stable/XMLreference.html -->
+
+<mujoco model="dummy-robot">
+
+    <!--=============================================================-->
+    <!-- Settings -->
+
+    <!-- Sets option for parser and compiler:
+         angle: degree (default) or radian
+         coordinate: positions/orientations expressed in local or global frame
+         inertiafromgeom: enable the inertia properties from geometry-->
+
+    <compiler angle="radian"
+              coordinate="local"
+              inertiafromgeom="true"/>
+
+    <!-- Sets option for physics simulation:
+         timestep: time between measurement/control steps in simulator
+         gravity: gravitational acceleration vector (x, y, z)
+         integrator: algorithm for computing positions/velocities-->
+    <option timestep="0.005"
+            gravity="0 0 -9.81"
+            integrator="implicitfast"/>
+
+    <!-- Specifies default values for various attributes-->
+    <default>
+      <!-- Geometry defaults: solid surface with reasonable friction
+           contype: bit mask of which collision group the feom belongs to
+           conaffinity: bit mask of which group this geom can collide with
+           friction: coefficients (sliding, torsional, rolling)
+
+           note: contact friction between two geoms is the max of either
+           geom friction values. 0.8 is an estimate for rubber on a floor/desk -->
+        <geom contype="1"
+              conaffinity="1"
+              friction="0.8 0.005 0.0001"/>
+
+    </default>
+
+    <!--=============================================================-->
+    <!-- Assets: Meshes and Visual textures
+         this xml code only use built-in shapes provided by MuJoCo -->
+
+    <asset>
+        <!-- Use simple gradient for sky texture -->
+        <texture type="skybox"
+                 builtin="gradient"
+                 rgb1="0.5 0.7 1"
+                 rgb2="0.95 0.95 1"
+                 width="256"
+                 height="256"/>
+
+        <!-- Use built-in checker pattern to create grid texture-->
+        <texture name="grid"
+                 type="2d"
+                 builtin="checker"
+                 rgb1="0.2 0.3 0.4"
+                 rgb2="0.3 0.4 0.5"
+                 width="512"
+                 height="512"
+                 mark="cross"
+                 markrgb="0.8 0.8 0.8"/>
+
+
+        <!-- Create a grid material from the grid texture -->
+        <material name="grid"
+                  texture="grid"
+                  texrepeat="5 5"
+                  reflectance="0"
+                  specular="0"
+                  shininess="0"/>
+
+    </asset>
+
+
+    <!--=============================================================-->
+    <!-- World and robot bodies-->
+
+    <!-- The world and everything in it -->
+    <worldbody>
+
+        <!-- Ground plane at z=0, grid texture. if size x or y is set to 0, the plane is infinite-->
+        <geom name="ground"
+              type="plane"
+              size="5 5 0.1"
+              material="grid"/>
+
+        <!-- Lighting -->
+        <light pos="0 0 1.5"
+               dir="0 0 -1"
+               diffuse="0.8 0.8 0.8"/>
+
+
+        <!-- Define the robot as a nested tree of bodies and joints. The origin of
+             the chassis is the center of the axles.
+             the wheel radius is 254 mm and arm length is 196 mm, thus
+             the axle is located at 254 -196 mm = 58 mm above the ground.
+             This allows wheels to be touching the ground at the start of the episode-->
+        <body name="chassis" pos="0 0 0.058">
+
+            <!-- Free joint: robot can translate/orient freely in world frame-->
+            <freejoint name="root"/>
+
+            <!-- Create visual and collision geometry-->
+
+            <!-- Body part: box.
+                 Size of the body is 100 mm , 240 mm, 1200 mm -->
+            <geom name="main_body"
+                  type="box"
+                  size="0.05 0.08 0.6"
+                  pos="0 0 0.6"
+                  rgba="0.2 0.4 0.8 1"
+                  mass="13.2"/>
+
+            <!-- If want to add custom inertia
+                <inertial pos="0.000000 0.000000 0.017000"
+                          mass="0.127000"
+                          diaginertia="0.000056790 0.000054532 0.000058722"/> -->
+
+            <!-- Right Arm part: capsule.
+                 Size of the arm is length 196 mm radius 30 mm
+                 joint position is [0.125 0 0.98]-->
+            <body name="right_arm" pos="0 0.125 0">
+                <joint name="right_arm_joint"
+                       type="hinge"
+                       axis = "0 1 0"
+                       damping = "0.001"
+                       frictionloss= "0.001"
+                       armature="4.5e-5"/>
+                <geom name="right_arm_geom"
+                       type="capsule"
+                       fromto="0 0 0   0 0 0.196"
+                       size="0.015"
+                       rgba="0.1 0.1 0.1 1"
+                       mass="0.434"/>
+                <!-- Right Wheel -->
+                <body name="right_wheel" pos="0 0.06 0.196">
+                    <!-- Joint: connect body to its parent and defines motion
+                         type: free, ball, slide, hinge
+                         axis: rotate around one axis for hinge type
+                         damping: viscous resistance
+                         frictionloss: resistance to motion
+                         armature: motor's rotational inertia reflected through the gearbox
+                                   Estimated rotational inertia of motor: ....
+                                   With a 1:N gearbox, we multiply the inertia by N^2 to get the reflected inertia
+                                   -->
+                    <joint name="right_wheel_joint"
+                           type="hinge"
+                           axis="0 1 0"
+                           damping = "0.001"
+                           frictionloss= "0.001"
+                           armature="4.5e-5"/>
+                    <geom name="right_wheel_geom"
+                           type="cylinder"
+                           size="0.254 0.025"
+                           euler="1.5708 0 0"
+                           rgba="0.15 0.15 0.15 1"
+                           mass="1.78"/>
+                </body>
+            </body>
+
+            <!-- Left Arm part: capsule.
+                 Size of the arm is length 196 mm radius 30 mm
+                 joint position is [0.125 0 0.98]-->
+            <body name="left_arm" pos="0 -0.125 0">
+                <joint name="left_arm_joint"
+                       type="hinge"
+                       axis = "0 1 0"
+                       damping = "0.001"
+                       frictionloss= "0.001"
+                       armature="4.5e-5"/>
+                <geom name="left_arm_geom"
+                       type="capsule"
+                       fromto="0 0 0    0 0 0.196"
+                       size="0.015"
+                       rgba="0.1 0.1 0.1 1"
+                       mass="0.434"/>
+                <!-- Left Wheel -->
+                <body name="left_wheel" pos="0 -0.06 0.196">
+                    <!-- Joint: connect body to its parent and defines motion
+                         type: free, ball, slide, hinge
+                         axis: rotate around one axis for hinge type
+                         damping: viscous resistance
+                         frictionloss: resistance to motion
+                         armature: motor's rotational inertia reflected through the gearbox
+                                   Estimated rotational inertia of motor: ....
+                                   With a 1:N gearbox, we multiply the inertia by N^2 to get the reflected inertia
+                                   -->
+                    <joint name="left_wheel_joint"
+                           type="hinge"
+                           axis="0 1 0"
+                           damping = "0.001"
+                           frictionloss= "0.001"
+                           armature="4.5e-5"/>
+                    <geom name="left_wheel_geom"
+                           type="cylinder"
+                           size="0.254 0.025"
+                           euler="1.5708 0 0"
+                           rgba="0.15 0.15 0.15 1"
+                           mass="1.78"/>
+                </body>
+            </body>
+
+
+            <!--IMU-->
+            <site name="imu_site"
+                  type="box"
+                  pos="0 0 0.15"
+                  size="0.01 0.01 0.01"
+                  rgba="0 0 1.0 1.0"/>
+
+        </body>
+    </worldbody>
+
+    <!--=============================================================-->
+    <!-- Tendon: Defining differential mechanism constraint in the joint-->
+    <tendon>
+        <fixed name="differential_right">
+            <joint joint="right_arm_joint" coef="0.3"/>
+            <joint joint="right_wheel_joint" coef="1"/>
+        </fixed>
+        <fixed name="differential_left">
+            <joint joint="left_arm_joint" coef="0.3"/>
+            <joint joint="left_wheel_joint" coef="1"/>
+        </fixed>
+
+
+    </tendon>
+
+
+
+    <!--=============================================================-->
+    <!-- Actuators: motor driving the wheel joints-->
+    <actuator>
+
+      <!-- Left motor is connected to the left wheel joint. Note that autolimits is
+           set to "true" in the compiler element, which means the ctrlrange determines
+           the limits of the actuator (i.e. ctrllimited is automatically set to "true"
+
+           Control torque for hinge joint is determined by gear * control (Nm).
+           For reinforcement learning, it helps to have a normalized ctrl, so
+           we set the limits to [-2, 2]. With the gear set to 1, that gives us
+           actual limits of -2 to 2 Nm, which is a decent estimate of our motor with
+           1:1 gearbox-->
+      <motor name="left_motor"
+             tendon="differential_left"
+             gear="1"
+             ctrllimited="true"
+             ctrlrange="-2.0 2.0"/>
+
+      <motor name="right_motor"
+             tendon="differential_right"
+             gear="1"
+             ctrllimited="true"
+             ctrlrange="-2.0 2.0"/>
+    </actuator>
+
+
+
+    <!--=============================================================-->
+    <!-- sensors: IMU and encoders -->
+
+    <!-- Define all the sensors and their locations -->
+    <sensor>
+      <!-- IMU sensors at imu_site. While our IMU only provides the gyro and
+           acceleration data, we can get ground-truth orientation here to help us
+           with training (even if we do not have it on the real robot). -->
+      <accelerometer name="imu_accel" site="imu_site"/>
+      <gyro name="imu_gyro" site="imu_site"/>
+      <framequat name="imu_orientation" objtype="site" objname="imu_site"/>
+
+      <!-- Wheel Encoders (joint position and velocity) -->
+      <jointpos name="left_wheel_pos" joint="left_wheel_joint"/>
+      <jointpos name="right_wheel_pos" joint="right_wheel_joint"/>
+      <jointvel name="left_wheel_vel" joint="left_wheel_joint"/>
+      <jointvel name="right_wheel_vel" joint="right_wheel_joint"/>
+
+      <!-- Arm Encoders (joint position and velocity) -->
+      <jointpos name="left_arm_pos" joint="left_arm_joint"/>
+      <jointpos name="right_arm_pos" joint="right_arm_joint"/>
+      <jointvel name="left_arm_vel" joint="left_arm_joint"/>
+      <jointvel name="right_arm_vel" joint="right_arm_joint"/>
+
+    </sensor>
+</mujoco>
